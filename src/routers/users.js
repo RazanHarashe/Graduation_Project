@@ -43,11 +43,7 @@ router.get("/users/confirmEmail/:token", async (req, res) => {
       { confirmEmail: true }
     );
 
-    const template = await fs.readFile(
-      "./src/emails/confemail.ejs",
-      "utf-8"
-    );
-    
+    const template = await fs.readFile("./src/emails/confemail.ejs", "utf-8");
 
     if (!user) {
       return res
@@ -101,7 +97,7 @@ router.post("/users/login", async (req, res) => {
     const user = await User.findOne({ email: req.body.email });
 
     if (!user) {
-      return res.status(404).send("User not found!");
+      return res.status(404).send({ error: "User not found!" });
     }
     if (!user.confirmEmail) {
       return res.status(400).json({ message: "plz confirm your eamil " });
@@ -118,8 +114,23 @@ router.post("/users/login", async (req, res) => {
       await user.save();
       res.send({ user, token });
     } else {
-      return res.status(400).send("password is wrong!");
+      return res.status(400).send({ error: "Password is wrong!" });
     }
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+router.get("/users/me", async (req, res) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const me = await User.findOne({ _id: decoded.userId });
+    if (!me) {
+      return res.status(400).send({ error: "No User!" });
+    }
+    res.send(me);
   } catch (error) {
     res.status(500).send(error);
   }
