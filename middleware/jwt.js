@@ -11,6 +11,8 @@ function authJwt() {
       "/users/login",
       "/users/signup",
       "/users/me",
+      "/users/prediction",
+      "/users/history",
     ],
   });
 }

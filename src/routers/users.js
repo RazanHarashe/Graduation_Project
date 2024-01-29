@@ -5,6 +5,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../emails/sendEmail");
 const fs = require("fs").promises;
+const MedInf = require("../models/medical information");
+const axios = require("axios");
 router.post("/users/signup", async (req, res) => {
   const user = new User(req.body);
   const email = req.body.email;
@@ -131,6 +133,71 @@ router.get("/users/me", async (req, res) => {
       return res.status(400).send({ error: "No User!" });
     }
     res.send(me);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+router.post("/users/prediction", async (req, res) => {
+  try {
+    const {
+      Age,
+      Gender,
+      Height,
+      Weight,
+      HighBP,
+      LowBP,
+      Cholesterol,
+      Glucose,
+      Smoking,
+      Alcohol,
+      Activity,
+    } = req.body;
+
+    const BMI = Weight / ((Height / 100) * (Height / 100));
+
+    const BP = LowBP + (1 / 3) * (HighBP - LowBP);
+
+    const data = {
+      Age,
+      Gender,
+      Height,
+      Weight,
+      BMI,
+      HighBP,
+      LowBP,
+      BP,
+      Cholesterol,
+      Glucose,
+      Smoking,
+      Alcohol,
+      Activity,
+    };
+
+    // Send a POST request to the Python API
+    const response = await axios.post("http://127.0.0.1:5000/predict", [data], {
+      headers: { "Content-Type": "application/json" }, // Set the content type to JSON
+    });
+
+    // Handle the response from Python
+    const predictions = response.data.predictions; // Update to match the response format
+
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const MidInf = new MedInf({
+      ...data,
+      Result: predictions[0],
+      user: decoded.userId,
+    });
+
+    await MidInf.save();
+
+    // Handle the predictions as needed
+    console.log({ predictions });
+
+    // Send the predictions as the response
+    res.json({ predictions });
   } catch (error) {
     res.status(500).send(error);
   }
